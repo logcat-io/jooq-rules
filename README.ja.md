@@ -75,19 +75,21 @@ plain SQL の式も同じ扱いだ。**スキーマ識別子を文字列で書�
 
 ## 扱っている範囲
 
-| § | 内容 |
+`SKILL.md` に規則と判断基準があり、根拠・コード・手順は `references/` にある。判断が要るときだけ開く。
+
+| ファイル | 内容 |
 |---|---|
-| 1 | なぜ jOOQ か — JPA との比較、間違いが表面化する時点 |
-| 2 | コード生成メタモデル、スキーマ変更の手順、plain SQL の逃げ道 |
-| 3 | **プロジェクション** — ユースケース別の分離、集計結果の専用型 |
-| 4 | クエリの書き方 — SQL の順序、条件の変数への切り出し |
-| 5 | 型安全性と null — 既定値を決めるのは誰か |
-| 6 | マッピング境界 — Adapter / Port / ドメイン |
-| 7 | ページネーション — カーソル設計、tie-breaker、COUNT の分離、チェックリスト |
-| 8 | 動的クエリ — 許される抽象化と、隠しすぎる抽象化 |
-| 9 | N+1 の回避 — batch fetch と MULTISET |
-| 10 | トランザクション境界と Outbox |
-| 11 | 新しい Adapter のチェックリスト |
+| **`SKILL.md`** | 規則・判断基準・チェックリスト — スキルが毎回読み込む部分 |
+| `references/queries.md` | 前提バージョンと codegen 設定、プロジェクション、null、マッピング、動的クエリ |
+| `references/pagination.md` | カーソル設計、tie-breaker、**HMAC 署名**、COUNT |
+| `references/writes.md` | N+1、**大量書き込み**、トランザクション境界と Outbox |
+| `references/testing.md` | **コンパイルで捕まえられないもの**と、それをテストで捕まえる方法 |
+
+後ろの二章は、この文書自身が呼び込んだ問いへの答えだ。jOOQ を使う根拠がコンパイル時検証にあるなら、
+**コンパイラが見逃すもの**がそのままテストの範囲になる — 結合のカーディナリティ、カーソルの境界、
+冪等性、クエリ本数。そして読み取り側の N+1 をここまで詰めたなら書き込み側も同じであるべきなので、
+一括 INSERT の chunk サイズは「とりあえず 1000 件」ではなく PostgreSQL のバインドパラメータ上限
+65535 から逆算する。
 
 ---
 
@@ -127,18 +129,23 @@ public にすると、他の Adapter や UseCase が Record を直接変換し�
 
 ```bash
 # グローバルに
-mkdir -p ~/.claude/skills/jooq-rules && cp SKILL.md ~/.claude/skills/jooq-rules/
+mkdir -p ~/.claude/skills/jooq-rules
+cp -r SKILL.md references ~/.claude/skills/jooq-rules/
 
 # プロジェクト単位で
-mkdir -p .claude/skills/jooq-rules && cp SKILL.md .claude/skills/jooq-rules/
+mkdir -p .claude/skills/jooq-rules
+cp -r SKILL.md references .claude/skills/jooq-rules/
 ```
 
 jOOQ のクエリを書いたりレビューしたりするときに自動で適用される。
 
 ### ただの文書として
 
-`SKILL.md` を開けばいい。冒頭の数行の YAML だけがスキル用のメタデータで、残りはふつうの
-Markdown だ。
+`SKILL.md` を開いてリンクをたどればいい。冒頭の数行の YAML だけがスキル用のメタデータで、
+残りはふつうの Markdown だ。
+
+> **`SKILL.md` と `references/` が単一の出典だ。** 3 つの README はその内容を説明するもので、
+> 遅れることがある。食い違ったらスキル文書が勝つ。
 
 ---
 

@@ -77,19 +77,22 @@ default stays `batch fetch` — switch **after** the round-trip cost has actuall
 
 ## What it covers
 
-| § | Topic |
+`SKILL.md` holds the rules and the decision tests. The reasoning, code and procedures live in
+`references/`, opened only when a judgement call needs them.
+
+| File | Contents |
 |---|---|
-| 1 | Why jOOQ — compared with JPA, and when mistakes surface |
-| 2 | Generated metamodel, schema change procedure, the plain-SQL escape hatch |
-| 3 | **Projection** — per-use-case projections, dedicated types for aggregates |
-| 4 | Query style — SQL ordering, extracting conditions into named variables |
-| 5 | Type safety and nulls — who decides the default |
-| 6 | Mapping boundaries — adapter / port / domain |
-| 7 | Pagination — cursor design, tie-breakers, separating COUNT, checklist |
-| 8 | Dynamic queries — which abstractions help and which hide too much |
-| 9 | Avoiding N+1 — batch fetch vs MULTISET |
-| 10 | Transaction boundaries and the outbox pattern |
-| 11 | Checklist for a new adapter |
+| **`SKILL.md`** | Rules, decision tests, checklist — the part a skill loads every time |
+| `references/queries.md` | Version baseline and codegen config, projection, nulls, mapping, dynamic queries |
+| `references/pagination.md` | Cursor design, tie-breakers, **HMAC signing**, COUNT |
+| `references/writes.md` | N+1, **bulk writes**, transaction boundaries and the outbox pattern |
+| `references/testing.md` | **What compile-time cannot catch**, and how to test for it |
+
+Two chapters answer questions the rest of the document raises. Since the case for jOOQ rests on
+compile-time verification, *what the compiler misses* is exactly the scope of the tests — join
+cardinality, cursor boundaries, idempotency, query counts. And a document this careful about N+1 on
+the read side owes the same care to writes, so bulk inserts get a chunk size derived from
+PostgreSQL's 65535 bind-parameter ceiling rather than a round number.
 
 ---
 
@@ -129,18 +132,23 @@ the caller identity and the filter conditions inside the cursor, and check them 
 
 ```bash
 # Globally
-mkdir -p ~/.claude/skills/jooq-rules && cp SKILL.md ~/.claude/skills/jooq-rules/
+mkdir -p ~/.claude/skills/jooq-rules
+cp -r SKILL.md references ~/.claude/skills/jooq-rules/
 
 # Or for one project
-mkdir -p .claude/skills/jooq-rules && cp SKILL.md .claude/skills/jooq-rules/
+mkdir -p .claude/skills/jooq-rules
+cp -r SKILL.md references .claude/skills/jooq-rules/
 ```
 
 It attaches itself when you write or review jOOQ queries.
 
 ### As a document
 
-Open `SKILL.md`. The few lines of YAML at the top are skill metadata; everything after that is
-ordinary Markdown.
+Open `SKILL.md` and follow the links. The few lines of YAML at the top are skill metadata;
+everything after that is ordinary Markdown.
+
+> **`SKILL.md` and `references/` are the single source of truth.** The three READMEs describe what
+> is in them and can fall behind; when they disagree, the skill document wins.
 
 ---
 

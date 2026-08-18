@@ -74,19 +74,20 @@ UI 요구사항을 먼저 확인하고 고른다.
 
 ## 다루는 것
 
-| § | 내용 |
+`SKILL.md` 에 규칙과 판별 기준이 있고, 근거·코드·절차는 `references/` 에 있다. 판단이 필요할 때만 연다.
+
+| 파일 | 내용 |
 |---|---|
-| 1 | 왜 jOOQ 인가 — JPA 와의 비교, 실수가 드러나는 시점 |
-| 2 | 코드 생성 메타모델, 스키마 변경 절차, plain SQL 탈출구 |
-| 3 | **프로젝션** — 유스케이스별 분리, 집계 결과 전용 타입 |
-| 4 | 쿼리 스타일 — SQL 순서, 조건 변수 분리 |
-| 5 | 타입 안전성과 널 처리 — 디폴트는 누가 정하나 |
-| 6 | 매핑 경계 — Adapter / Port / 도메인 |
-| 7 | 페이지네이션 — cursor 설계, tie-breaker, COUNT 분리, 체크리스트 |
-| 8 | 동적 쿼리 — 허용되는 추상화와 금지되는 추상화 |
-| 9 | N+1 — batch fetch / MULTISET |
-| 10 | 트랜잭션 경계와 Outbox |
-| 11 | 새 Adapter 체크리스트 |
+| **`SKILL.md`** | 규칙 · 판별 기준 · 체크리스트 — 스킬이 매번 로드하는 부분 |
+| `references/queries.md` | 기준 버전과 codegen 설정, 프로젝션, 널 처리, 매핑, 동적 쿼리 |
+| `references/pagination.md` | cursor 설계, tie-breaker, **HMAC 서명**, COUNT |
+| `references/writes.md` | N+1, **대량 쓰기**, 트랜잭션 경계와 Outbox |
+| `references/testing.md` | **컴파일이 못 잡는 것**과 그걸 테스트로 잡는 법 |
+
+뒤의 두 장은 문서가 스스로 불러온 질문에 답한 것이다. jOOQ 를 쓰는 근거가 컴파일 타임 검증이라면
+**컴파일이 놓치는 것**이 정확히 테스트의 범위가 된다 — 조인 카디널리티, cursor 경계, 멱등성, 쿼리 개수.
+그리고 읽기 쪽 N+1 을 이만큼 따졌다면 쓰기 쪽도 같아야 하므로, 대량 INSERT 의 chunk 크기를
+"적당히 1000개"가 아니라 PostgreSQL 바인드 파라미터 상한 65535 에서 역산한다.
 
 ---
 
@@ -126,18 +127,23 @@ public 이면 다른 Adapter 나 UseCase 가 Record 를 직접 변환하기 시�
 
 ```bash
 # 전역
-mkdir -p ~/.claude/skills/jooq-rules && cp SKILL.md ~/.claude/skills/jooq-rules/
+mkdir -p ~/.claude/skills/jooq-rules
+cp -r SKILL.md references ~/.claude/skills/jooq-rules/
 
 # 프로젝트 한정
-mkdir -p .claude/skills/jooq-rules && cp SKILL.md .claude/skills/jooq-rules/
+mkdir -p .claude/skills/jooq-rules
+cp -r SKILL.md references .claude/skills/jooq-rules/
 ```
 
 jOOQ 쿼리를 작성하거나 리뷰할 때 자동으로 붙는다.
 
 ### 그냥 문서로
 
-`SKILL.md` 를 열어서 읽으면 된다. 앞의 YAML 몇 줄만 스킬용 메타데이터고 나머지는 평범한
+`SKILL.md` 를 열고 링크를 따라가면 된다. 앞의 YAML 몇 줄만 스킬용 메타데이터고 나머지는 평범한
 마크다운이다.
+
+> **`SKILL.md` 와 `references/` 가 단일 출처다.** README 3개는 그 내용을 설명하는 문서이고
+> 뒤처질 수 있다. 어긋나면 스킬 문서가 이긴다.
 
 ---
 
