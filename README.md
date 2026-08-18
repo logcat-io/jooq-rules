@@ -1,125 +1,162 @@
+<div align="center">
+
 # jooq-rules
 
-jOOQ 를 **ORM 이 아니라 타입세이프 SQL DSL 로** 쓰기 위한 규약. Claude Code 스킬로도, 그냥 읽는 문서로도 쓸 수 있다.
+**Use jOOQ as a type-safe SQL DSL, not as an ORM.**
 
-> jOOQ 는 SQL 을 숨기는 도구가 아니라, **SQL 을 컴파일 타임에 검증 가능하게 만드는** 도구다.
-> 이 구분이 여기 있는 모든 규칙의 뿌리다.
+A convention guide for Kotlin/Spring, written as defaults and exceptions rather than
+prohibitions — every rule ships with its *why* and its *when not*.
 
-*A practical jOOQ convention guide for Kotlin/Spring. Korean.*
+[English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md)
 
----
+</div>
 
-## 이 문서가 다른 점
+> jOOQ is not a tool for hiding SQL. It is a tool for making SQL **verifiable at compile time**.
+> That distinction is the root of every rule here.
 
-jOOQ 문서는 "이 API 를 이렇게 씁니다"까지는 알려준다. 정작 실무에서 막히는 건 **"그래서 언제 무엇을 고르나"** 인데, 그건 대체로 안 적혀 있다.
+**The guide itself ([`SKILL.md`](SKILL.md)) is written in Korean.** This README describes what is
+in it. It works as a [Claude Code](https://claude.com/claude-code) skill, or as a document you
+simply read.
 
-여기서는 규칙마다 **왜** 와 **언제 아닌가** 를 같이 적었다.
+## Where this comes from
 
-### 금지가 아니라 기본값과 예외
+These conventions were worked out on personal projects, not proven under production traffic at
+scale. Read them as one developer's reasoning, not as field-tested standard practice.
 
-대부분의 컨벤션 문서는 "X 하지 마라"로 끝난다. 그러면 X 가 맞는 상황을 만났을 때 규칙을 어기거나, 이상하게 우회하게 된다.
-
-```
-selectFrom 은 금지가 아니다. 다만 대부분의 조회에서 프로젝션이 더 낫기 때문에
-기본값을 프로젝션으로 둔다.
-
-판단 기준 한 줄: "이 쿼리가 읽고도 안 쓰는 컬럼이 있는가?"
-있으면 프로젝션. 없으면 selectFrom 을 써도 된다 —
-컬럼을 전부 나열하는 건 같은 말을 길게 하는 것뿐이다.
-```
-
-같은 방식으로 `DSL.field` 문자열 표현식도 다룬다. **스키마 식별자를 문자열로 쓰는 것**과 **표현식을 plain SQL 로 쓰는 것**은 다르다. 전자는 피하고, `ts_rank` 나 JSON 연산자처럼 codegen 이 표현하지 못하는 후자는 **정당한 탈출구**로 인정하되 바인드 변수 + 한 곳 격리를 요구한다.
-
-### 트레이드오프의 대가를 숨기지 않는다
-
-"cursor 페이지네이션을 써라"까지만 적힌 글은 많다. **cursor 를 쓰면 무엇을 잃는지**까지 적힌 글은 드물다.
-
-```
-cursor 의 대가: 앞뒤 순차 이동만 된다.
-"N 페이지로 점프"와 "전체 몇 페이지"를 포기하는 것이 cursor 선택의 트레이드오프다.
-
-무한 스크롤·더보기 UI 면 애초에 그 기능이 필요 없으니 cursor 가 맞고,
-페이지 번호가 박힌 관리자 테이블이면 OFFSET 이 맞다.
-UI 요구사항을 먼저 확인하고 고른다.
-```
-
-`MULTISET` 도 마찬가지다. 쿼리 1회 + 타입 안전이라는 장점이 분명하지만 기본값은 `batch fetch` 다 — **왕복 비용이 실제로 측정된 뒤에** 전환한다. "한 방 쿼리가 멋있어서"는 도입 근거가 아니다.
+The failure modes cited as justification — connection pool exhaustion, OFFSET scan growth, silent
+data inconsistency — are general backend concerns rather than anything specific to jOOQ. What is
+specific to jOOQ is where the library lets you avoid them, and that is what the document maps.
 
 ---
 
-## 다루는 것
+## What makes it different
 
-| § | 내용 |
+jOOQ's own documentation explains the API well. What tends to be missing is **when to choose
+what** — and that is where most of the friction actually is.
+
+### Defaults and exceptions, not prohibitions
+
+Most convention documents end at "don't do X". Then you meet the case where X is right, and you
+either break the rule or work around it awkwardly.
+
+Here, each rule sets a default and states the conditions under which that default is wrong.
+
+```
+selectFrom is not forbidden. Projection is better for most reads,
+so projection is the default.
+
+The test, in one line: "does this query read a column it never uses?"
+If yes, project. If no, selectFrom is fine —
+listing every column is just saying the same thing at greater length.
+```
+
+Plain-SQL expressions get the same treatment. Referring to a **schema identifier** by string and
+writing an **expression** in plain SQL are different acts. The first is avoided; the second — for
+things codegen cannot express, like `ts_rank` or JSON operators — is a legitimate escape hatch,
+provided it uses bind variables and lives in one place.
+
+### The cost of a trade-off is stated
+
+Plenty of articles tell you to use cursor pagination. Few tell you what cursor pagination
+takes away.
+
+```
+The cost of a cursor: sequential movement only.
+Giving up "jump to page N" and "how many pages in total" is the trade-off you are making.
+
+Infinite scroll or a load-more button never needed those, so a cursor fits.
+An admin table with page numbers in it does need them, so OFFSET fits.
+Check the UI requirement first, then choose.
+```
+
+`MULTISET` is handled the same way. One query with full type safety is a real advantage, but the
+default stays `batch fetch` — switch **after** the round-trip cost has actually been measured.
+"A single query looks impressive" is not a reason to adopt one.
+
+---
+
+## What it covers
+
+| § | Topic |
 |---|---|
-| 1 | 왜 jOOQ 인가 — JPA 와의 비교, 실수가 드러나는 시점 |
-| 2 | 코드 생성 메타모델, 스키마 변경 절차, plain SQL 탈출구 |
-| 3 | **프로젝션** — 유스케이스별 분리, 집계 결과 전용 타입 |
-| 4 | 쿼리 스타일 — SQL 순서, 조건 변수 분리 |
-| 5 | 타입 안전성과 널 처리 — 디폴트는 누가 정하나 |
-| 6 | 매핑 경계 — Adapter / Port / 도메인 |
-| 7 | 페이지네이션 — cursor 설계, tie-breaker, COUNT 분리, 체크리스트 |
-| 8 | 동적 쿼리 — 허용되는 추상화와 금지되는 추상화 |
-| 9 | N+1 — batch fetch / MULTISET |
-| 10 | 트랜잭션 경계와 Outbox |
-| 11 | 새 Adapter 체크리스트 |
+| 1 | Why jOOQ — compared with JPA, and when mistakes surface |
+| 2 | Generated metamodel, schema change procedure, the plain-SQL escape hatch |
+| 3 | **Projection** — per-use-case projections, dedicated types for aggregates |
+| 4 | Query style — SQL ordering, extracting conditions into named variables |
+| 5 | Type safety and nulls — who decides the default |
+| 6 | Mapping boundaries — adapter / port / domain |
+| 7 | Pagination — cursor design, tie-breakers, separating COUNT, checklist |
+| 8 | Dynamic queries — which abstractions help and which hide too much |
+| 9 | Avoiding N+1 — batch fetch vs MULTISET |
+| 10 | Transaction boundaries and the outbox pattern |
+| 11 | Checklist for a new adapter |
 
 ---
 
-## 규칙 몇 개 미리보기
+## A few of the rules
 
-**프로젝션은 성능 최적화이기 이전에 계약이다.**
-어떤 컬럼을 읽는지가 코드에 적혀 있으면, 그 쿼리가 무엇에 의존하는지 읽는 것만으로 안다.
+**Projection is a contract before it is an optimisation.**
+When the columns are written down, you can tell what a query depends on by reading it.
 
-**엔티티에 nullable 통계 필드를 끼워넣지 않는다.**
-채워진 경로와 안 채워진 경로를 호출처가 알 수 없다면, 그건 **타입이 거짓말을 하는 것**이다. 집계·조인 결과는 읽기 전용 프로젝션 타입을 따로 둔다.
+**Don't bolt a nullable aggregate field onto an entity.**
+If a caller cannot tell whether that field was populated, **the type is lying**. Give aggregate and
+join results their own read-only projection type.
 
-**Adapter 는 DB 가 말한 것을 그대로 옮긴다. 해석은 도메인이 한다.**
-Adapter 에서 `?: ""` 로 NULL 을 메우면 "아직 안 왔다"와 "실패했다"가 하나로 뭉개진다. 두 상태를 구분해야 하는 화면은 그때부터 분기할 수 없다.
+**The adapter carries across what the database said. The domain interprets it.**
+Filling a NULL with `?: ""` in the adapter collapses "hasn't arrived yet" and "failed" into one
+value. A screen that has to distinguish them no longer can.
 
-**매퍼는 private 이어야 한다.**
-public 이면 다른 Adapter 나 UseCase 가 Record 를 직접 변환하기 시작한다. 그러면 필드 하나 추가할 때 "변환 로직이 어디 어디 있더라"를 찾아다녀야 한다.
+**Mappers should be private.**
+Make one public and other adapters or use cases start converting records themselves. Then adding a
+field means hunting for every place a conversion lives.
 
-**추상화의 판별 기준: "이 함수를 읽고 실행될 SQL 을 그릴 수 있는가?"**
-못 그리면 과한 추상화다. jOOQ 위에 다시 ORM 을 얹지 않는다.
+**The test for an abstraction: can you picture the SQL from reading the function?**
+If not, it hides too much. Don't put an ORM back on top of jOOQ.
 
-**외부 호출은 트랜잭션 밖에서 한다.**
-외부 API 가 느려지면 DB 커넥션이 그 시간만큼 잡혀 있고, 결국 커넥션 풀이 마른다. 트랜잭션 안에서는 **의도만 기록**하고(Outbox), 발행은 워커가 한다.
+**External calls belong outside the transaction.**
+When an external API slows down, a database connection is held for exactly that long, and the pool
+eventually runs dry. Inside the transaction, record only the intent (outbox); a worker publishes it.
 
-**외부에 노출하는 cursor 는 서명한다.**
-정렬 키 값을 날것으로 내보내면 클라이언트가 조작해 다른 사용자의 범위를 긁을 수 있다. 호출자 식별자와 필터 조건을 cursor 안에 봉인하고 복호화 시 대조한다.
+**Sign any cursor you hand out.**
+Emit raw sort-key values and a client can tamper with them to walk into another user's range. Seal
+the caller identity and the filter conditions inside the cursor, and check them on decode.
 
 ---
 
-## 쓰는 법
+## Using it
 
-### Claude Code 스킬로
+### As a Claude Code skill
 
 ```bash
-# 전역
+# Globally
 mkdir -p ~/.claude/skills/jooq-rules && cp SKILL.md ~/.claude/skills/jooq-rules/
 
-# 프로젝트 한정
+# Or for one project
 mkdir -p .claude/skills/jooq-rules && cp SKILL.md .claude/skills/jooq-rules/
 ```
 
-jOOQ 쿼리를 작성하거나 리뷰할 때 자동으로 붙는다.
+It attaches itself when you write or review jOOQ queries.
 
-### 그냥 문서로
+### As a document
 
-`SKILL.md` 를 열어서 읽으면 된다. 앞의 YAML 몇 줄만 스킬용 메타데이터고 나머지는 평범한 마크다운이다.
-
----
-
-## 전제와 한계
-
-- 예제는 **Kotlin + Spring Boot + PostgreSQL** 기준이다. Java 나 다른 DB 면 문법만 바꾸면 된다
-- 헥사고날(포트-어댑터) 구조를 전제로 §6 매핑 경계를 썼다. 그 구조를 안 쓰면 그 절은 안 맞는다
-- `MULTISET` 은 jOOQ 3.15+ 기능이다
-- **팀 컨벤션이 있으면 팀 것이 이긴다.** 이건 한 개인의 규약이지 표준이 아니다
-- 문서는 한국어다
+Open `SKILL.md`. The few lines of YAML at the top are skill metadata; everything after that is
+ordinary Markdown.
 
 ---
 
-## 라이선스
+## Scope and limits
 
-MIT
+- Examples are **Kotlin + Spring Boot + PostgreSQL**. For Java or another database, only the syntax
+  changes
+- §6 assumes a hexagonal (ports and adapters) layout. Without one, that section will not fit
+- `MULTISET` requires jOOQ 3.15+
+- **If your team has a convention, the team's convention wins.** This is one person's set of rules,
+  not a standard
+- Drawn from personal projects rather than large-scale production operation — see
+  [Where this comes from](#where-this-comes-from)
+
+---
+
+## License
+
+MIT. See [LICENSE](LICENSE).
